@@ -115,8 +115,8 @@
     <script type="module">
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.21.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.21.0/firebase-database.js";
-
+        import { getDatabase, ref, set, onValue, off } from "https://www.gstatic.com/firebasejs/9.21.0/firebase-database.js";
+    
         // Your web app's Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCRijy4Qy-UTegosRZS2IB0-H8jksVepRU",
@@ -127,32 +127,16 @@
             appId: "1:786773309986:web:2f1a28ba8637cb944ee87b",
             measurementId: "G-K7Q18EZ62M"
         };
-
+    
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
-
-        // Check for username in local storage
-        window.onload = function() {
-            const storedUsername = localStorage.getItem('username');
-            if (storedUsername) {
-                document.getElementById('username').value = storedUsername; // Populate username field
-            }
-        }
-
+    
         // Function to send messages
         window.sendMessage = function() {
             const message = document.getElementById('msg').value;
-            const username = document.getElementById('username').value.trim();
-
-            if (username === '') {
-                alert("You must enter your name.");
-                return; // Stop the function if no name is provided
-            }
-
-            // Save the username in local storage
-            localStorage.setItem('username', username);
-
+            const username = document.getElementById('username').value || 'Anonymous';
+    
             if (message.trim() !== '') {
                 const messageRef = ref(database, 'messages/' + Date.now());
                 set(messageRef, {
@@ -165,32 +149,48 @@
                 });
             }
         }
-
+    
         // Function to display messages
-        onValue(ref(database, 'messages'), (snapshot) => {
-            const messages = snapshot.val();
-            const chatMessages = document.getElementById('chatMessages');
-            chatMessages.innerHTML = ''; // Clear existing messages
-
-            if (messages) {
-                for (const key in messages) {
-                    const msg = messages[key];
-                    const messageElement = document.createElement('div');
-                    messageElement.classList.add('chat-message');
-                    messageElement.innerHTML = `<span>${msg.sender}:</span> ${msg.message}`;
-                    chatMessages.appendChild(messageElement);
+        const displayMessages = () => {
+            const messagesRef = ref(database, 'messages');
+            onValue(messagesRef, (snapshot) => {
+                const messages = snapshot.val();
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = ''; // Clear existing messages
+    
+                if (messages) { // Check if messages exist
+                    for (const key in messages) {
+                        const msg = messages[key];
+                        const messageElement = document.createElement('div');
+                        messageElement.classList.add('chat-message');
+                        messageElement.innerHTML = `<span>${msg.sender}:</span> ${msg.message}`;
+                        chatMessages.appendChild(messageElement);
+                    }
+                    chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
                 }
-            }
-            chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
-        });
-
+            });
+        };
+    
+        // Function to open the chat form
         window.openForm = function () {
             document.getElementById("myForm").style.display = "block";
-        }
-
+            // Clear the chat messages display
+            document.getElementById('chatMessages').innerHTML = '';
+            // Stop listening to previous messages
+            const messagesRef = ref(database, 'messages');
+            off(messagesRef); // Unsubscribe from the listener
+        };
+    
         window.closeForm = function () {
             document.getElementById("myForm").style.display = "none";
-        }
+        };
+    
+        // Call displayMessages to start listening for new messages
+        
+        displayMessages();
     </script>
+    
+    
+    
 </body>
 </html>
