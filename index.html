@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Firebase Chat Example</title>
+    <title>Faisal-Mahmood</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -9,115 +9,46 @@
     <script src="https://www.gstatic.com/firebasejs/9.21.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.21.0/firebase-database.js"></script>
     <style>
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
         .open-button {
             background-color: #555;
             color: white;
             padding: 16px 20px;
             border: none;
             cursor: pointer;
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 280px;
-        }
-
-        .chat-popup {
-            display: none;
-            position: fixed;
-            bottom: 0;
-            right: 15px;
-            border: 3px solid #f1f1f1;
-            z-index: 9;
-            width: 300px;
-        }
-
-        .form-container {
-            padding: 10px;
-            background-color: white;
-        }
-
-        .form-container textarea {
-            width: 100%;
-            padding: 15px;
-            margin: 5px 0 22px 0;
-            border: none;
-            background: #f1f1f1;
-            resize: none;
-            min-height: 100px;
-        }
-
-        .form-container textarea:focus {
-            background-color: #ddd;
-            outline: none;
-        }
-
-        .form-container .btn {
-            background-color: #04AA6D;
-            color: white;
-            padding: 16px 20px;
-            border: none;
-            cursor: pointer;
-            width: 100%;
-            margin-bottom: 10px;
-        }
-
-        .form-container .cancel {
-            background-color: red;
-        }
-
-        .chat-messages {
-            border: 1px solid #f1f1f1;
-            padding: 10px;
-            height: 300px;
-            overflow-y: auto;
-            background-color: #f9f9f9;
-            margin-bottom: 10px;
-        }
-
-        .chat-message {
-            margin: 5px 0;
-        }
-
-        .chat-message span {
-            font-weight: bold;
+            opacity: 0.8;
+            width: 200px;
         }
     </style>
 </head>
 
 <body>
+    <div class="container d-flex flex-column align-items-center justify-content-center vh-100">
+        <h2 class="text-center mt-4">Chat With Faisal</h2>
+        <button class="btn btn-dark open-button" id="myButton" onclick="openForm()">Chat</button>
 
-    <h2 class="text-center mt-4">Chat Application</h2>
-
-    <button class="open-button" onclick="openForm()">Chat</button>
-
-    <div class="chat-popup" id="myForm">
-        <div class="form-container">
-            <h1>Chat</h1>
-            <label for="username"><b>Enter your name</b></label>
-            <input type="text" id="username" class="form-control" placeholder="Your name" required />
-            <div class="chat-messages" id="chatMessages"></div>
-            <label for="msg"><b>Message</b></label>
-            <textarea placeholder="Type message.." id="msg" class="form-control" required></textarea>
-            <button type="button" class="btn" onclick="sendMessage()">Send</button>
-            <button type="button" class="btn cancel" onclick="closeForm()">Close</button>
+        <!-- Chat Popup initially hidden -->
+        <div class="container chat-popup card mt-3" id="myForm" style="display: none;">
+            <div class="card-body">
+                <h1 class="h5">Chat</h1>
+                <label for="username"><b>Enter your name</b></label>
+                <input type="text" id="username" class="form-control mb-2" placeholder="Your name" required />
+                <div class="chat-messages border mb-3" id="chatMessages"
+                    style="height: 250px; overflow-y: scroll; background-color: #f9f9f9;"></div>
+                <label for="msg"><b>Message</b></label>
+                <textarea rows="4" placeholder="Type message.." id="msg" class="form-control mb-2" required></textarea>
+                <br>
+                <button type="button" class="btn btn-success" onclick="sendMessage()">Send</button>
+                <button type="button" class="btn btn-danger" onclick="closeForm()">Close</button>
+                <button type="button" class="btn btn-danger" onclick="clearChat()">Clear Chat</button>
+            </div>
         </div>
     </div>
 
     <!-- Import Firebase SDK -->
     <script type="module">
-        // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.21.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, off } from "https://www.gstatic.com/firebasejs/9.21.0/firebase-database.js";
-    
-        // Your web app's Firebase configuration
+        import { getDatabase, ref, set, onValue, off, remove } from "https://www.gstatic.com/firebasejs/9.21.0/firebase-database.js";
+
         const firebaseConfig = {
             apiKey: "AIzaSyCRijy4Qy-UTegosRZS2IB0-H8jksVepRU",
             authDomain: "chat-app-d13f7.firebaseapp.com",
@@ -127,70 +58,83 @@
             appId: "1:786773309986:web:2f1a28ba8637cb944ee87b",
             measurementId: "G-K7Q18EZ62M"
         };
-    
-        // Initialize Firebase
+
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
-    
-        // Function to send messages
-        window.sendMessage = function() {
+
+        window.sendMessage = function () {
             const message = document.getElementById('msg').value;
-            const username = document.getElementById('username').value || 'Anonymous';
-    
-            if (message.trim() !== '') {
-                const messageRef = ref(database, 'messages/' + Date.now());
-                set(messageRef, {
-                    sender: username,
-                    message: message,
-                }).then(() => {
-                    document.getElementById('msg').value = ''; // Clear textarea
-                }).catch((error) => {
-                    console.error("Error sending message: ", error);
-                });
+            const username = document.getElementById('username').value.trim(); // Get and trim username input
+
+            // Validate that the username is not empty
+            if (username === '') {
+                alert("Please enter your name before sending a message."); // Alert user
+                return; // Stop execution if the username is empty
             }
+
+            // Validate that the message is not empty
+            if (message.trim() === '') {
+                alert("Please enter a message to send."); // Alert user
+                return; // Stop execution if the message is empty
+            }
+
+            const messageRef = ref(database, 'messages/' + Date.now());
+            set(messageRef, {
+                sender: username,
+                message: message,
+            }).then(() => {
+                document.getElementById('msg').value = ''; // Clear textarea
+            }).catch((error) => {
+                console.error("Error sending message: ", error);
+            });
         }
-    
-        // Function to display messages
+
         const displayMessages = () => {
             const messagesRef = ref(database, 'messages');
             onValue(messagesRef, (snapshot) => {
                 const messages = snapshot.val();
                 const chatMessages = document.getElementById('chatMessages');
                 chatMessages.innerHTML = ''; // Clear existing messages
-    
-                if (messages) { // Check if messages exist
+
+                console.log("Messages received:", messages); // Log the messages to debug
+
+                if (messages) {
                     for (const key in messages) {
                         const msg = messages[key];
                         const messageElement = document.createElement('div');
                         messageElement.classList.add('chat-message');
-                        messageElement.innerHTML = `<span>${msg.sender}:</span> ${msg.message}`;
+                        messageElement.innerHTML = `<span><strong>${msg.sender}:</strong></span> ${msg.message}`;
                         chatMessages.appendChild(messageElement);
                     }
                     chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
+                } else {
+                    console.log("No messages available");
                 }
             });
         };
-    
-        // Function to open the chat form
+
         window.openForm = function () {
-            document.getElementById("myForm").style.display = "block";
-            // Clear the chat messages display
-            document.getElementById('chatMessages').innerHTML = '';
-            // Stop listening to previous messages
-            const messagesRef = ref(database, 'messages');
-            off(messagesRef); // Unsubscribe from the listener
+            document.getElementById("myForm").style.display = "block"; // Show the chat box
+            document.getElementById("myButton").style.display = "block"; // hide the chat button
+            displayMessages(); // Ensure messages are displayed when opening chat
         };
-    
+
         window.closeForm = function () {
-            document.getElementById("myForm").style.display = "none";
+            document.getElementById("myForm").style.display = "none"; // Hide the chat box
+            document.getElementById('myButton').style.display = 'block'; // Show chat button
         };
-    
-        // Call displayMessages to start listening for new messages
-        
+
+        window.clearChat = function () {
+            const messagesRef = ref(database, 'messages');
+            remove(messagesRef).then(() => {
+                document.getElementById('chatMessages').innerHTML = ''; // Clear chat display
+            }).catch((error) => {
+                console.error("Error clearing chat: ", error);
+            });
+        };
+
         displayMessages();
     </script>
-    
-    
-    
+
 </body>
 </html>
