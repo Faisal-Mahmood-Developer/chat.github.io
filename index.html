@@ -1,28 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Firebase Chat Example</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
-  <style>
-      body { font-family: Arial, Helvetica, sans-serif; }
-      * { box-sizing: border-box; }
-      .open-button { background-color: #555; color: white; padding: 16px 20px; border: none; cursor: pointer; position: fixed; bottom: 20px; right: 20px; width: 280px; }
-      .chat-popup { display: none; position: fixed; bottom: 0; right: 15px; border: 3px solid #f1f1f1; z-index: 9; width: 300px; }
-      .form-container { padding: 10px; background-color: white; }
-      .form-container textarea { width: 100%; padding: 15px; margin: 5px 0 22px 0; border: none; background: #f1f1f1; resize: none; min-height: 100px; }
-      .form-container textarea:focus { background-color: #ddd; outline: none; }
-      .form-container .btn { background-color: #04AA6D; color: white; padding: 16px 20px; border: none; cursor: pointer; width: 100%; margin-bottom: 10px; }
-      .form-container .cancel { background-color: red; }
-      .chat-messages { border: 1px solid #f1f1f1; padding: 10px; height: 300px; overflow-y: auto; background-color: #f9f9f9; margin-bottom: 10px; }
-      .chat-message { margin: 5px 0; }
-      .chat-message span { font-weight: bold; }
-  </style>
+    <title>Firebase Chat Example</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.21.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.21.0/firebase-database.js"></script>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        .open-button {
+            background-color: #555;
+            color: white;
+            padding: 16px 20px;
+            border: none;
+            cursor: pointer;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 280px;
+        }
+
+        .chat-popup {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            right: 15px;
+            border: 3px solid #f1f1f1;
+            z-index: 9;
+            width: 300px;
+        }
+
+        .form-container {
+            padding: 10px;
+            background-color: white;
+        }
+
+        .form-container textarea {
+            width: 100%;
+            padding: 15px;
+            margin: 5px 0 22px 0;
+            border: none;
+            background: #f1f1f1;
+            resize: none;
+            min-height: 100px;
+        }
+
+        .form-container textarea:focus {
+            background-color: #ddd;
+            outline: none;
+        }
+
+        .form-container .btn {
+            background-color: #04AA6D;
+            color: white;
+            padding: 16px 20px;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .form-container .cancel {
+            background-color: red;
+        }
+
+        .chat-messages {
+            border: 1px solid #f1f1f1;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+            margin-bottom: 10px;
+        }
+
+        .chat-message {
+            margin: 5px 0;
+        }
+
+        .chat-message span {
+            font-weight: bold;
+        }
+    </style>
 </head>
+
 <body>
 
     <h2 class="text-center mt-4">Chat Application</h2>
@@ -42,8 +111,13 @@
         </div>
     </div>
 
-    <script>
-        // Firebase configuration
+    <!-- Import Firebase SDK -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.21.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.21.0/firebase-database.js";
+
+        // Your web app's Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCRijy4Qy-UTegosRZS2IB0-H8jksVepRU",
             authDomain: "chat-app-d13f7.firebaseapp.com",
@@ -55,46 +129,68 @@
         };
 
         // Initialize Firebase
-        const app = firebase.initializeApp(firebaseConfig);
-        const database = firebase.database(app);
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
 
-        // Open the chat window
-        function openForm() {
-            document.getElementById("myForm").style.display = "block";
-        }
-
-        // Close the chat window
-        function closeForm() {
-            document.getElementById("myForm").style.display = "none";
-        }
-
-        // Send a message
-        function sendMessage() {
-            const message = document.getElementById('msg').value;
-            const username = document.getElementById('username').value || 'Anonymous';
-            if (message.trim() !== '') {
-                const chatMessage = { sender: username, message: message };
-                database.ref('messages').push(chatMessage); // Push message to Firebase
-                document.getElementById('msg').value = ''; // Clear textarea
+        // Check for username in local storage
+        window.onload = function() {
+            const storedUsername = localStorage.getItem('username');
+            if (storedUsername) {
+                document.getElementById('username').value = storedUsername; // Populate username field
             }
         }
 
-        // Display messages from Firebase
-        database.ref('messages').on('child_added', (snapshot) => {
-            const data = snapshot.val();
-            displayMessage(data.sender, data.message);
+        // Function to send messages
+        window.sendMessage = function() {
+            const message = document.getElementById('msg').value;
+            const username = document.getElementById('username').value.trim();
+
+            if (username === '') {
+                alert("You must enter your name.");
+                return; // Stop the function if no name is provided
+            }
+
+            // Save the username in local storage
+            localStorage.setItem('username', username);
+
+            if (message.trim() !== '') {
+                const messageRef = ref(database, 'messages/' + Date.now());
+                set(messageRef, {
+                    sender: username,
+                    message: message,
+                }).then(() => {
+                    document.getElementById('msg').value = ''; // Clear textarea
+                }).catch((error) => {
+                    console.error("Error sending message: ", error);
+                });
+            }
+        }
+
+        // Function to display messages
+        onValue(ref(database, 'messages'), (snapshot) => {
+            const messages = snapshot.val();
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.innerHTML = ''; // Clear existing messages
+
+            if (messages) {
+                for (const key in messages) {
+                    const msg = messages[key];
+                    const messageElement = document.createElement('div');
+                    messageElement.classList.add('chat-message');
+                    messageElement.innerHTML = `<span>${msg.sender}:</span> ${msg.message}`;
+                    chatMessages.appendChild(messageElement);
+                }
+            }
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
         });
 
-        // Display a message in the chat window
-        function displayMessage(sender, message) {
-            const chatMessages = document.getElementById('chatMessages');
-            const messageElement = document.createElement('div');
-            messageElement.classList.add('chat-message');
-            messageElement.innerHTML = `<span>${sender}:</span> ${message}`;
-            chatMessages.appendChild(messageElement);
-            chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
+        window.openForm = function () {
+            document.getElementById("myForm").style.display = "block";
+        }
+
+        window.closeForm = function () {
+            document.getElementById("myForm").style.display = "none";
         }
     </script>
-
 </body>
 </html>
