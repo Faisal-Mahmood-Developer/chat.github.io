@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <title>Faisal-Mahmood</title>
+    <title>Chat - Faisal</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.21.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.21.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
+
     <style>
         .open-button {
             background-color: #555;
@@ -24,117 +24,192 @@
 <body>
     <div class="container d-flex flex-column align-items-center justify-content-center vh-100">
         <h2 class="text-center mt-4">Chat With Faisal</h2>
-        <button class="btn btn-dark open-button" id="myButton" onclick="openForm()">Chat</button>
+        <button class="btn btn-dark open-button" id="myButton" onclick="openChat()">Chat</button>
+        <button class="btn btn-warning mt-3" id="logoutButton" onclick="logout()">Logout</button>
 
-        <!-- Chat Popup initially hidden -->
+        <!-- Chat Popup -->
         <div class="container chat-popup card mt-3" id="myForm" style="display: none;">
             <div class="card-body">
                 <h1 class="h5">Chat</h1>
                 <label for="username"><b>Enter your name</b></label>
                 <input type="text" id="username" class="form-control mb-2" placeholder="Your name" required />
-                <div class="chat-messages border mb-3" id="chatMessages"
-                    style="height: 250px; overflow-y: scroll; background-color: #f9f9f9;"></div>
+
+                <!-- Select Chat -->
+                <label for="chatSelect"><b>Select Chat</b></label>
+                <select id="chatSelect" class="form-control mb-2" onchange="loadChatMessages()">
+                    <option value="" disabled selected>Select a chat</option>
+                </select>
+                <button class="btn btn-primary mb-2" onclick="createChat()">Create New Chat</button>
+
+                <div class="chat-messages border mb-3" id="chatMessages" style="height: 250px; overflow-y: scroll;"></div>
                 <label for="msg"><b>Message</b></label>
                 <textarea rows="4" placeholder="Type message.." id="msg" class="form-control mb-2" required></textarea>
                 <br>
                 <button type="button" class="btn btn-success" onclick="sendMessage()">Send</button>
-                <button type="button" class="btn btn-danger" onclick="closeForm()">Close</button>
+                <button type="button" class="btn btn-danger" onclick="closeChat()">Close</button>
                 <button type="button" class="btn btn-danger" onclick="clearChat()">Clear Chat</button>
             </div>
         </div>
     </div>
 
     <!-- Import Firebase SDK -->
+    <script type="module" src="firebase-config.js"></script>
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.21.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, off, remove } from "https://www.gstatic.com/firebasejs/9.21.0/firebase-database.js";
+        import { database, ref, set, onValue, remove, auth, signOut, onAuthStateChanged } from './firebase-config.js';
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyCRijy4Qy-UTegosRZS2IB0-H8jksVepRU",
-            authDomain: "chat-app-d13f7.firebaseapp.com",
-            projectId: "chat-app-d13f7",
-            storageBucket: "chat-app-d13f7.appspot.com",
-            messagingSenderId: "786773309986",
-            appId: "1:786773309986:web:2f1a28ba8637cb944ee87b",
-            measurementId: "G-K7Q18EZ62M"
+        // Variable to track if a chat ID has been selected
+        let chatSelected = false;
+
+        // Create Chat Function
+        window.createChat = function () {
+            const username = document.getElementById('username').value.trim();
+            const chatId = prompt("Enter a unique chat ID:");
+
+            if (username === '' || chatId === '') {
+                alert("Please enter both name and chat ID.");
+                return;
+            }
+
+            const chatRef = ref(database, 'chats/' + chatId);
+            set(chatRef, {
+                members: { [username]: true },
+                messages: {} // Initialize with empty messages
+            }).then(() => {
+                alert("Chat created successfully.");
+                loadChatOptions(); // Refresh chat options
+                document.getElementById('msg').value = ''; // Clear message input
+            }).catch((error) => {
+                console.error("Error creating chat: ", error);
+            });
         };
 
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
-
-        window.sendMessage = function () {
-            const message = document.getElementById('msg').value;
-            const username = document.getElementById('username').value.trim(); // Get and trim username input
-
-            // Validate that the username is not empty
-            if (username === '') {
-                alert("Please enter your name before sending a message."); // Alert user
-                return; // Stop execution if the username is empty
-            }
-
-            // Validate that the message is not empty
-            if (message.trim() === '') {
-                alert("Please enter a message to send."); // Alert user
-                return; // Stop execution if the message is empty
-            }
-
-            const messageRef = ref(database, 'messages/' + Date.now());
-            set(messageRef, {
-                sender: username,
-                message: message,
-            }).then(() => {
-                document.getElementById('msg').value = ''; // Clear textarea
-            }).catch((error) => {
-                console.error("Error sending message: ", error);
+        // Load available chat options
+        const loadChatOptions = () => {
+            const chatsRef = ref(database, 'chats');
+            onValue(chatsRef, (snapshot) => {
+                const chatSelect = document.getElementById('chatSelect');
+                chatSelect.innerHTML = '<option value="" disabled selected>Select a chat</option>'; // Reset options
+                const chats = snapshot.val();
+                if (chats) {
+                    for (const chatId in chats) {
+                        const option = document.createElement('option');
+                        option.value = chatId;
+                        option.textContent = chatId;
+                        chatSelect.appendChild(option);
+                    }
+                }
             });
-        }
+        };
 
-        const displayMessages = () => {
-            const messagesRef = ref(database, 'messages');
+        // Load messages for the selected chat
+        window.loadChatMessages = function () {
+            const chatId = document.getElementById('chatSelect').value;
+            if (!chatId) {
+                if (!chatSelected) {
+                    alert("Please select a chat!"); // Only show alert if chat is not selected before
+                }
+                return;
+            }
+            chatSelected = true; // Set flag to true after first selection
+
+            const messagesRef = ref(database, `chats/${chatId}/messages`);
             onValue(messagesRef, (snapshot) => {
                 const messages = snapshot.val();
                 const chatMessages = document.getElementById('chatMessages');
                 chatMessages.innerHTML = ''; // Clear existing messages
 
-                console.log("Messages received:", messages); // Log the messages to debug
-
                 if (messages) {
                     for (const key in messages) {
                         const msg = messages[key];
                         const messageElement = document.createElement('div');
-                        messageElement.classList.add('chat-message');
                         messageElement.innerHTML = `<span><strong>${msg.sender}:</strong></span> ${msg.message}`;
                         chatMessages.appendChild(messageElement);
                     }
-                    chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
-                } else {
-                    console.log("No messages available");
+                    chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to the bottom
                 }
             });
         };
 
-        window.openForm = function () {
-            document.getElementById("myForm").style.display = "block"; // Show the chat box
-            document.getElementById("myButton").style.display = "block"; // hide the chat button
-            displayMessages(); // Ensure messages are displayed when opening chat
+        // Sending Message Function
+        window.sendMessage = function () {
+            const message = document.getElementById('msg').value;
+            const username = document.getElementById('username').value.trim();
+            const chatId = document.getElementById('chatSelect').value;
+
+            if (username === '' || message.trim() === '' || !chatId) {
+                if (!chatSelected) {
+                    alert("Please enter both name and message and select a chat.");
+                }
+                return;
+            }
+
+            const messageRef = ref(database, `chats/${chatId}/messages/${Date.now()}`);
+            set(messageRef, {
+                sender: username,
+                message: message,
+            }).then(() => {
+                document.getElementById('msg').value = ''; // Clear the textarea
+                loadChatMessages(); // Reload messages after sending
+            }).catch((error) => {
+                console.error("Error sending message: ", error);
+            });
         };
 
-        window.closeForm = function () {
-            document.getElementById("myForm").style.display = "none"; // Hide the chat box
-            document.getElementById('myButton').style.display = 'block'; // Show chat button
+        // Open Chat Function
+        window.openChat = function () {
+            document.getElementById("myForm").style.display = "block";
+            document.getElementById("myButton").style.display = "none";
+            document.getElementById("logoutButton").style.display = "none";
+            loadChatOptions(); // Load chats when the form opens
         };
 
+        // Close Chat Function
+        window.closeChat = function () {
+            document.getElementById("myForm").style.display = "none";
+            document.getElementById('myButton').style.display = 'block';
+            document.getElementById("logoutButton").style.display = "block";
+            chatSelected = false; // Reset the selection flag when closing the chat
+        };
+
+        // Clear Chat Function
         window.clearChat = function () {
-            const messagesRef = ref(database, 'messages');
-            remove(messagesRef).then(() => {
-                document.getElementById('chatMessages').innerHTML = ''; // Clear chat display
+            const chatId = document.getElementById('chatSelect').value;
+            if (!chatId) {
+                alert("Please select a chat to clear.");
+                return;
+            }
+
+            const chatRef = ref(database, 'chats/' + chatId);
+            remove(chatRef).then(() => {
+                alert("Chat cleared successfully.");
+                loadChatOptions(); // Reload chat options after clearing
+                document.getElementById('chatMessages').innerHTML = ''; // Clear the message display
+                chatSelected = false; // Reset selection flag after clearing chat
             }).catch((error) => {
                 console.error("Error clearing chat: ", error);
             });
         };
 
-        displayMessages();
+        // Handle Logout
+        window.logout = function () {
+            signOut(auth).then(() => {
+                console.log("User signed out.");
+                window.location.href = 'login.html'; // Redirect to login page
+            }).catch((error) => {
+                console.error("Sign out error: ", error);
+            });
+        };
+
+        // Check if user is logged in
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                window.location.href = 'login.html'; // Redirect to login page if not authenticated
+            }
+        });
+
+        loadChatOptions(); // Initial load of chat options when the page loads
     </script>
 
 </body>
+
 </html>
